@@ -1,8 +1,17 @@
 CONTAINER = "filipfilmar/nvc_buildenv:0.0"
 
+UID := $(shell id -u)
+GID := $(shell id -g)
+
+UIDS := \
+		-u $(UID):$(GID)
+OPTS := \
+		--interactive \
+		--tty
+
 build: build.stamp
 .PHONY: build
-build.stamp:
+build.stamp: Makefile copier.sh Dockerfile
 	docker build -t $(CONTAINER) .
 	touch $@
 
@@ -18,11 +27,23 @@ push.stamp: build.stamp
 run: run.stamp
 .PHONY: run
 run.stamp: build.stamp install.dir
-	docker run -it $(CONTAINER) \
+	docker run \
+		$(UIDS) \
+		$(OPTS) \
 		-v $(PWD)/install.dir:/output:rw \
+		$(CONTAINER) \
 		/copier.sh
-	touch $@
+.PHONY: run.stamp
 
 clean:
 	rm -fr *.stamp
+	rm -fr install.dir
 .PHONY: clean
+
+bash:
+	docker run \
+		$(OPTS) \
+		-v $(PWD)/install.dir:/output:rw \
+		$(CONTAINER) \
+		/bin/bash
+.PHONY: bash
