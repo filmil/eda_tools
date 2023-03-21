@@ -68,10 +68,21 @@ RUN apt-get update && apt -y install --no-install-recommends \
     && \
     rm -rf /var/lib/apt/lists/*
 
+RUN mkdir -p /run
+
 WORKDIR /git
 RUN git clone --depth=1 https://github.com/nickg/nvc nvc
+RUN git clone --depth=1 https://github.com/brandt/symlinks
+
+WORKDIR /git/symlinks
+RUN env CFLAGS="-static" make
+RUN mkdir -p /install
+RUN cp symlinks /run
+
+
 WORKDIR /git/nvc
 RUN ./autogen.sh
+
 
 RUN mkdir -p /build/nvc
 WORKDIR /build/nvc
@@ -81,13 +92,17 @@ RUN /git/nvc/configure \
   --enable-static-llvm \
   --with-llvm=/install/llvm/bin/llvm-config \
   --disable-default-paths
-RUN make install
+RUN make install -j 50
+
+RUN /run/symlinks -c /lib/x86_64-linux-gnu
 
 COPY --from=nvcbuilder \
   /lib/x86_64-linux-gnu \
-  /instal/x86_64-linux-gnu
+  /install/x86_64-linux-gnu
 
 COPY copier.sh /
+RUN chmod a+rx /copier.sh
+RUN ls -l /copier.sh
 
 VOLUME ["/src"]
 WORKDIR /src
